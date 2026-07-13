@@ -1,6 +1,6 @@
 import { logger } from "./logger";
 
-const ENSEMBLE_BASE_URL = "https://ensembledata.com/apis/ig";
+const ENSEMBLE_BASE_URL = "https://ensembledata.com/apis/instagram";
 
 export class InstagramNotFoundError extends Error {
   constructor(username: string) {
@@ -17,6 +17,7 @@ export class InstagramUpstreamError extends Error {
 }
 
 export interface NormalizedInstagramProfile {
+  userId: string;
   username: string;
   fullName: string;
   profilePicUrl: string;
@@ -143,6 +144,7 @@ export async function fetchInstagramProfile(
   const edge_owner_to_timeline_media = user.edge_owner_to_timeline_media as { count?: number } | undefined;
 
   return {
+    userId: String(user.pk ?? user.id ?? user.user_id ?? ""),
     username: String(user.username ?? username),
     fullName: String(user.full_name ?? user.fullName ?? ""),
     profilePicUrl: String(user.profile_pic_url_hd ?? user.profile_pic_url ?? user.profilePicUrl ?? ""),
@@ -227,7 +229,7 @@ function extractDuration(post: Record<string, unknown>): number {
   return 0;
 }
 
-function normalizePost(post: Record<string, unknown>, username: string): NormalizedInstagramPost {
+function normalizePost(post: Record<string, unknown>): NormalizedInstagramPost {
   const id = String(post.id ?? post.pk ?? post.shortcode ?? "");
   const shortcode = post.shortcode ?? post.code ?? id;
 
@@ -285,14 +287,14 @@ function normalizePost(post: Record<string, unknown>, username: string): Normali
 }
 
 export async function fetchInstagramPosts(
-  username: string,
+  userId: string,
   depth = 1,
 ): Promise<{
   posts: NormalizedInstagramPost[];
   authorStatsOverride: Partial<NormalizedInstagramProfile>;
 }> {
   const result = await ensembleGet("/user/posts", {
-    username,
+    user_id: userId,
     depth: String(depth),
   });
 
@@ -324,7 +326,7 @@ export async function fetchInstagramPosts(
     }
   }
 
-  const posts = rawPosts.map((post) => normalizePost(post, username));
+  const posts = rawPosts.map((post) => normalizePost(post));
 
   // Try to extract updated author stats from the first post
   const authorStatsOverride: Partial<NormalizedInstagramProfile> = {};

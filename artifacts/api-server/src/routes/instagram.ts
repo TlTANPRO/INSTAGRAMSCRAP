@@ -85,7 +85,7 @@ router.post("/instagram/analyses", async (req, res): Promise<void> => {
   try {
     const profile = await fetchInstagramProfile(username);
     const { posts, authorStatsOverride } = await fetchInstagramPosts(
-      username,
+      profile.userId,
       SCRAPE_DEPTH,
     );
     const mergedProfile = { ...profile, ...authorStatsOverride };
