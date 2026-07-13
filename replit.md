@@ -1,45 +1,44 @@
-# [Project name]
+# INSTAGRAMSCRAP
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Scraper analitik akun Instagram menggunakan EnsembleData API. Mengambil profil + postingan terbaru, menghitung engagement rate dan growth potential, menyimpan ke PostgreSQL.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+```bash
+# Wajib: set PORT, DATABASE_URL, ENSEMBLEDATA_API_TOKEN di .env dulu
+pnpm --filter @workspace/db run push            # push schema database (pertama kali)
+pnpm --filter @workspace/api-server run dev     # jalankan server di PORT yang diset di .env
+```
+
+- `pnpm run typecheck` — typecheck semua package
+- `pnpm run build` — build semua package
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate Zod schemas dari OpenAPI spec
+
+## Required Environment Variables
+
+| Variable | Keterangan |
+|----------|------------|
+| `PORT` | Port server (wajib, contoh: `5000`) |
+| `DATABASE_URL` | PostgreSQL connection string |
+| `ENSEMBLEDATA_API_TOKEN` | Token API EnsembleData |
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Data source: EnsembleData `https://ensembledata.com/apis/instagram/...`
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
-
-## Architecture decisions
-
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- `artifacts/api-server/src/lib/instagram.ts` — logic scraping + kalkulasi analitik
+- `artifacts/api-server/src/routes/instagram.ts` — REST API routes
+- `lib/db/src/schema/` — Drizzle schema (source of truth database)
+- `lib/api-spec/openapi.yaml` — kontrak API (source of truth endpoints)
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- `PORT` wajib diisi di `.env` — server langsung crash tanpa variabel ini
+- Token EnsembleData ada kuota harian; error `HTTP 495` = kuota habis, reset jam 00:00 UTC
+- Endpoint `/instagram/user/posts` membutuhkan `user_id` (pk), bukan username — sudah ditangani otomatis oleh kode
+- Base URL yang benar: `https://ensembledata.com/apis/instagram/` (bukan `/apis/ig/`)
