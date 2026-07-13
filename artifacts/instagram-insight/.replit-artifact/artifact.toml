@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Instagram Insight"
+version = "1.0.0"
+id = "artifacts/instagram-insight"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18276
+
+[services.development]
+run = "pnpm --filter @workspace/instagram-insight run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/instagram-insight", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/instagram-insight/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18276"
+BASE_PATH = "/"

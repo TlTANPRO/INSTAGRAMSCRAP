@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: instagram
+    description: Instagram account analysis operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,100 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /instagram/analyses:
+    get:
+      operationId: listInstagramAnalyses
+      tags: [instagram]
+      summary: List saved Instagram analyses
+      description: Returns the history of previously analyzed Instagram accounts, most recent first
+      responses:
+        "200":
+          description: List of saved analyses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InstagramAnalysisSummary"
+    post:
+      operationId: createInstagramAnalysis
+      tags: [instagram]
+      summary: Analyze an Instagram account
+      description: Fetches profile and recent post data for an Instagram account (by username or profile URL), computes engagement analytics, and saves the result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstagramAnalysisInput"
+      responses:
+        "201":
+          description: Analysis created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstagramAnalysis"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Instagram account not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Upstream Instagram data provider error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /instagram/analyses/{id}:
+    get:
+      operationId: getInstagramAnalysis
+      tags: [instagram]
+      summary: Get a saved Instagram analysis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Analysis found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstagramAnalysis"
+        "404":
+          description: Analysis not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteInstagramAnalysis
+      tags: [instagram]
+      summary: Delete a saved Instagram analysis
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Analysis not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +129,415 @@ components:
           type: string
       required:
         - status
-
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    InstagramAnalysisInput:
+      type: object
+      required: [input]
+      properties:
+        input:
+          type: string
+          minLength: 1
+          description: Instagram username (with or without @) or a full profile URL
+    InstagramProfile:
+      type: object
+      required:
+        - username
+        - fullName
+        - profilePicUrl
+        - biography
+        - verified
+        - followerCount
+        - followingCount
+        - postCount
+        - externalUrl
+      properties:
+        username:
+          type: string
+        fullName:
+          type: string
+        profilePicUrl:
+          type: string
+        biography:
+          type: string
+        verified:
+          type: boolean
+        followerCount:
+          type: integer
+        followingCount:
+          type: integer
+        postCount:
+          type: integer
+        externalUrl:
+          type: string
+    InstagramPost:
+      type: object
+      required:
+        - id
+        - caption
+        - createTime
+        - thumbnailUrl
+        - postUrl
+        - mediaType
+        - likeCount
+        - commentCount
+        - viewCount
+        - saveCount
+        - durationSeconds
+      properties:
+        id:
+          type: string
+        caption:
+          type: string
+        createTime:
+          type: integer
+          description: Unix timestamp (seconds) the post was published
+        thumbnailUrl:
+          type: string
+        postUrl:
+          type: string
+        mediaType:
+          type: string
+          description: "IMAGE, VIDEO, CAROUSEL_ALBUM, or REEL"
+        likeCount:
+          type: integer
+          description: Number of likes
+        commentCount:
+          type: integer
+        viewCount:
+          type: integer
+          description: Number of views (for VIDEO/REEL only; 0 for IMAGE/CAROUSEL)
+        saveCount:
+          type: integer
+          description: Number of saves/bookmarks
+        durationSeconds:
+          type: number
+    InstagramAnalysisAggregates:
+      type: object
+      required:
+        - totalPostsAnalyzed
+        - totalLikeCount
+        - totalCommentCount
+        - totalViewCount
+        - totalSaveCount
+        - avgLikeCount
+        - avgCommentCount
+        - avgViewCount
+        - avgSaveCount
+        - engagementRate
+        - postsPerWeek
+        - mostViewedPostId
+        - mostLikedPostId
+      properties:
+        totalPostsAnalyzed:
+          type: integer
+        totalLikeCount:
+          type: integer
+        totalCommentCount:
+          type: integer
+        totalViewCount:
+          type: integer
+          description: Total views (VIDEO/REEL only)
+        totalSaveCount:
+          type: integer
+        avgLikeCount:
+          type: number
+        avgCommentCount:
+          type: number
+        avgViewCount:
+          type: number
+        avgSaveCount:
+          type: number
+        engagementRate:
+          type: number
+          description: Average (likes + comments + saves) / followers, as a percentage
+        postsPerWeek:
+          type: number
+        mostViewedPostId:
+          type: ["string", "null"]
+        mostLikedPostId:
+          type: ["string", "null"]
+    PerformanceTierCounts:
+      type: object
+      required: [viral, tinggi, bagus, rataRata, rendah]
+      properties:
+        viral:
+          type: integer
+        tinggi:
+          type: integer
+        bagus:
+          type: integer
+        rataRata:
+          type: integer
+        rendah:
+          type: integer
+    HashtagStat:
+      type: object
+      required: [tag, count]
+      properties:
+        tag:
+          type: string
+        count:
+          type: integer
+    MentionStat:
+      type: object
+      required: [mention, count]
+      properties:
+        mention:
+          type: string
+        count:
+          type: integer
+    DayOfWeekStat:
+      type: object
+      required: [day, postCount, avgLikeCount, avgCommentCount, avgViewCount]
+      properties:
+        day:
+          type: string
+          description: Indonesian day name (Senin..Minggu)
+        postCount:
+          type: integer
+        avgLikeCount:
+          type: number
+        avgCommentCount:
+          type: number
+        avgViewCount:
+          type: number
+    MonthlyStat:
+      type: object
+      required:
+        [month, postCount, totalLikeCount, avgLikeCount, avgEngagementRate]
+      properties:
+        month:
+          type: string
+          description: "Format YYYY-MM"
+        postCount:
+          type: integer
+        totalLikeCount:
+          type: integer
+        avgLikeCount:
+          type: number
+        avgEngagementRate:
+          type: number
+    DurationBucketStat:
+      type: object
+      required: [bucket, postCount, avgViewCount, avgEngagementRate]
+      properties:
+        bucket:
+          type: string
+        postCount:
+          type: integer
+        avgViewCount:
+          type: number
+        avgEngagementRate:
+          type: number
+    YearlyStat:
+      type: object
+      required:
+        [year, postCount, totalLikeCount, totalCommentCount, avgEngagementRate]
+      properties:
+        year:
+          type: string
+        postCount:
+          type: integer
+        totalLikeCount:
+          type: integer
+        totalCommentCount:
+          type: integer
+        avgEngagementRate:
+          type: number
+    MarketInsights:
+      type: object
+      required: [strengths, weaknesses, recommendations]
+      properties:
+        strengths:
+          type: array
+          items:
+            type: string
+        weaknesses:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+    IndustryBenchmark:
+      type: object
+      required:
+        - engagementRateBenchmark
+        - engagementRateComparison
+        - likesPerFollowerBenchmark
+        - accountLikesPerFollower
+        - likesPerFollowerComparison
+        - postingFrequencyBenchmark
+        - postingFrequencyComparison
+      properties:
+        engagementRateBenchmark:
+          type: number
+        engagementRateComparison:
+          type: string
+          enum: [above, average, below]
+        likesPerFollowerBenchmark:
+          type: number
+        accountLikesPerFollower:
+          type: number
+        likesPerFollowerComparison:
+          type: string
+          enum: [above, average, below]
+        postingFrequencyBenchmark:
+          type: number
+        postingFrequencyComparison:
+          type: string
+          enum: [above, average, below]
+    GrowthPotential:
+      type: object
+      required: [score, label, reasoning]
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        label:
+          type: string
+          enum: [rendah, sedang, tinggi]
+        reasoning:
+          type: string
+    InstagramAnalysisInsights:
+      type: object
+      required:
+        - topByViews
+        - topByLikes
+        - topByComments
+        - performanceTiers
+        - topHashtags
+        - topMentions
+        - performanceByDayOfWeek
+        - performanceByMonth
+        - durationAnalysis
+        - yearlySummary
+        - marketInsights
+        - industryBenchmark
+        - growthPotential
+      properties:
+        topByViews:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstagramPost"
+        topByLikes:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstagramPost"
+        topByComments:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstagramPost"
+        performanceTiers:
+          $ref: "#/components/schemas/PerformanceTierCounts"
+        topHashtags:
+          type: array
+          items:
+            $ref: "#/components/schemas/HashtagStat"
+        topMentions:
+          type: array
+          items:
+            $ref: "#/components/schemas/MentionStat"
+        performanceByDayOfWeek:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayOfWeekStat"
+        performanceByMonth:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyStat"
+        durationAnalysis:
+          type: array
+          items:
+            $ref: "#/components/schemas/DurationBucketStat"
+        yearlySummary:
+          type: array
+          items:
+            $ref: "#/components/schemas/YearlyStat"
+        marketInsights:
+          $ref: "#/components/schemas/MarketInsights"
+        industryBenchmark:
+          $ref: "#/components/schemas/IndustryBenchmark"
+        growthPotential:
+          $ref: "#/components/schemas/GrowthPotential"
+    AccountGrowthPoint:
+      type: object
+      required: [date, followerCount, postCount]
+      properties:
+        date:
+          type: string
+          format: date-time
+        followerCount:
+          type: integer
+        postCount:
+          type: integer
+    InstagramAnalysis:
+      type: object
+      required:
+        - id
+        - input
+        - profile
+        - posts
+        - aggregates
+        - insights
+        - growthHistory
+        - createdAt
+      properties:
+        id:
+          type: integer
+        input:
+          type: string
+        profile:
+          $ref: "#/components/schemas/InstagramProfile"
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/InstagramPost"
+        aggregates:
+          $ref: "#/components/schemas/InstagramAnalysisAggregates"
+        insights:
+          $ref: "#/components/schemas/InstagramAnalysisInsights"
+        growthHistory:
+          type: array
+          description: Follower count snapshots from every past analysis of this same account, oldest first
+          items:
+            $ref: "#/components/schemas/AccountGrowthPoint"
+        createdAt:
+          type: string
+          format: date-time
+    InstagramAnalysisSummary:
+      type: object
+      required:
+        - id
+        - input
+        - username
+        - fullName
+        - profilePicUrl
+        - followerCount
+        - postCount
+        - createdAt
+      properties:
+        id:
+          type: integer
+        input:
+          type: string
+        username:
+          type: string
+        fullName:
+          type: string
+        profilePicUrl:
+          type: string
+        followerCount:
+          type: integer
+        postCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
